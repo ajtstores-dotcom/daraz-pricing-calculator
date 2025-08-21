@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="description" content="Free Daraz.pk Pricing Calculator to compute selling price, fees, and profit for sellers in Pakistan.">
+<meta name="keywords" content="Daraz pricing calculator, Daraz fees calculator, Daraz profit calculator, Pakistan e-commerce tools">
+<title>Daraz.pk Pricing Calculator - Free Online Tool</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daraz.pk Pricing Calculator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        form { max-width: 400px; }
+        label { display: block; margin-top: 10px; }
+        input { width: 100%; padding: 8px; margin-top: 5px; }
+        input[type="radio"] { width: auto; margin-right: 5px; }
+        button { margin-top: 15px; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+        #result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background: #f8f9fa; }
+        #result.profit { background: #d4edda; } /* Green background for profit */
+        #result.loss { background: #f8d7da; } /* Red background for loss */
+        #result.breakeven { background: #f8f9fa; } /* Neutral background for breakeven */
+        h3 { text-transform: uppercase; font-weight: bold; }
+        ul { list-style-type: none; padding: 0; }
+        .aligned-item { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 5px; 
+        }
+        .aligned-item .label { 
+            flex: 1; 
+            text-align: left; 
+        }
+        .aligned-item .value { 
+            flex: 0 0 auto; 
+            text-align: right; 
+        }
+        .calculation { 
+            max-width: 400px; 
+            font-family: monospace; 
+            white-space: pre; 
+        }
+        .calculation div { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 5px; 
+        }
+        .calculation .label { 
+            flex: 1; 
+            text-align: left; 
+        }
+        .calculation .value { 
+            flex: 0 0 auto; 
+            text-align: right; 
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .calculation-options, .margin-type-options {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-top: 5px;
+        }
+        .calculation-options label, .margin-type-options label {
+            display: flex;
+            align-items: center;
+            margin-top: 0;
+        }
+        input:disabled { background: #e9ecef; }
+    </style>
+</head>
+<body>
+    <h1>Daraz.pk Pricing Strategy Calculator for FBM Orders</h1>
+    <p>Choose to calculate the recommended selling price or test a specific selling price. Enter required details below.</p>
+    
+    <form id="calcForm">
+        <label>Calculation Type:</label>
+        <div class="calculation-options">
+            <label>
+                <input type="radio" id="calc_recommended" name="calc_type" value="recommended" checked>
+                Calculate Recommended Price
+            </label>
+            <label>
+                <input type="radio" id="calc_test" name="calc_type" value="test">
+                Test Selling Price
+            </label>
+        </div>
+        
+        <label for="cost">Making/Buying Cost (Rs.):</label>
+        <input type="number" id="cost" required min="0" step="0.01">
+        
+        <label>Profit Margin Type (for Recommended Price):</label>
+        <div class="margin-type-options">
+            <label>
+                <input type="radio" id="margin_percent" name="margin_type" value="percent" checked>
+                Percentage
+            </label>
+            <label>
+                <input type="radio" id="margin_rupees" name="margin_type" value="rupees">
+                Rupees
+            </label>
+        </div>
+        
+        <label for="margin">Desired Profit Margin:</label>
+        <input type="number" id="margin" required min="0" step="0.01">
+        
+        <label for="commission">Category Commission (%):</label>
+        <input type="number" id="commission" required min="0" step="0.01">
+        
+        <label for="payment">Payment Processing Fee (%):</label>
+        <input type="number" id="payment" value="2.5" required min="0" step="0.01">
+        
+        <label for="vat">VAT % (According to province) optional:</label>
+        <input type="number" id="vat" min="0" step="0.01">
+        
+        <label for="test_price">Test Specific Selling Price (Rs.):</label>
+        <input type="number" id="test_price" min="0" step="0.01" disabled>
+        
+        <button type="button" onclick="calculate()">Calculate</button>
+    </form>
+    
+    <div id="result"></div>
+
+    <script>
+        // Handle calculation type radio buttons
+        document.querySelectorAll('input[name="calc_type"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const marginInput = document.getElementById('margin');
+                const testPriceInput = document.getElementById('test_price');
+                const marginLabel = document.querySelector('label[for="margin"]');
+                if (radio.value === 'recommended') {
+                    marginInput.disabled = false;
+                    testPriceInput.disabled = true;
+                    marginInput.required = true;
+                    testPriceInput.required = false;
+                    testPriceInput.value = '';
+                    document.getElementById('margin_percent').disabled = false;
+                    document.getElementById('margin_rupees').disabled = false;
+                    if (document.getElementById('margin_percent').checked) {
+                        marginLabel.textContent = 'Desired Profit Margin (%):';
+                    } else {
+                        marginLabel.textContent = 'Desired Profit Margin (Rs.):';
+                    }
+                } else {
+                    marginInput.disabled = true;
+                    testPriceInput.disabled = false;
+                    marginInput.required = false;
+                    testPriceInput.required = true;
+                    marginInput.value = '';
+                    document.getElementById('margin_percent').disabled = true;
+                    document.getElementById('margin_rupees').disabled = true;
+                    marginLabel.textContent = 'Desired Profit Margin (Disabled):';
+                }
+            });
+        });
+
+        // Handle margin type radio buttons
+        document.querySelectorAll('input[name="margin_type"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const label = document.querySelector('label[for="margin"]');
+                if (radio.value === 'percent') {
+                    label.textContent = 'Desired Profit Margin (%):';
+                } else {
+                    label.textContent = 'Desired Profit Margin (Rs.):';
+                }
+            });
+        });
+
+        function getHandling(price) {
+            if (price <= 500) return 10;
+            else if (price <= 1000) return 15;
+            else if (price <= 2000) return 20;
+            else return 60;
+        }
+
+        function calculate() {
+            const calcType = document.querySelector('input[name="calc_type"]:checked').value;
+            const cost = parseFloat(document.getElementById('cost').value);
+            const margin = parseFloat(document.getElementById('margin').value);
+            const commissionPercent = parseFloat(document.getElementById('commission').value);
+            const paymentPercent = parseFloat(document.getElementById('payment').value);
+            const vat = parseFloat(document.getElementById('vat').value) || 0;
+            const marginType = document.querySelector('input[name="margin_type"]:checked').value;
+            const testPrice = parseFloat(document.getElementById('test_price').value);
+
+            // Validation
+            if (calcType === 'recommended') {
+                if (isNaN(cost) || cost <= 0) {
+                    alert('Please enter a valid positive Making/Buying Cost.');
+                    return;
+                }
+                if (isNaN(margin) || margin < 0) {
+                    alert('Please enter a valid non-negative Profit Margin.');
+                    return;
+                }
+            } else {
+                if (isNaN(cost) || cost <= 0) {
+                    alert('Please enter a valid positive Making/Buying Cost.');
+                    return;
+                }
+                if (isNaN(testPrice) || testPrice <= 0) {
+                    alert('Please enter a valid positive Test Selling Price.');
+                    return;
+                }
+            }
+            if (isNaN(commissionPercent) || commissionPercent < 0) {
+                alert('Please enter a valid non-negative Category Commission.');
+                return;
+            }
+            if (isNaN(paymentPercent) || paymentPercent < 0) {
+                alert('Please enter a valid non-negative Payment Processing Fee.');
+                return;
+            }
+            if (vat < 0) {
+                alert('Please enter a valid non-negative VAT percentage.');
+                return;
+            }
+
+            const vatRate = vat / 100;
+            const commRate = commissionPercent / 100;
+            const payRate = paymentPercent / 100;
+            const effectiveRate = (commRate + payRate) * (1 + vatRate);
+            const denominator = 1 - effectiveRate;
+            if (denominator <= 0) {
+                alert('Invalid fee rates: denominator cannot be zero or negative.');
+                return;
+            }
+
+            let resultClass = 'neutral';
+            let resultHTML = '';
+            let handlingFeeReference = `
+                <h3>Daraz Item Handling Fee Reference</h3>
+                <table>
+                    <thead>
+                        <tr><th>Product Price Range</th><th>Item Handling Fee</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Rs. 0-500</td><td>Rs. 10</td></tr>
+                        <tr><td>Rs. 501-1000</td><td>Rs. 15</td></tr>
+                        <tr><td>Rs. 1001-2000</td><td>Rs. 20</td></tr>
+                        <tr><td>Rs. 2001 +</td><td>Rs. 60</td></tr>
+                    </tbody>
+                </table>
+                <p><em>Note: You may round the selling price to a market-friendly value and recalculate if needed.</em></p>
+            `;
+
+            if (calcType === 'recommended') {
+                let profit;
+                let marginLabel = marginType === 'percent' ? `${margin}%` : `Rs. ${margin}`;
+                if (marginType === 'percent') {
+                    const profitMargin = margin / 100;
+                    profit = cost * profitMargin;
+                } else {
+                    profit = margin;
+                }
+                const desiredNet = cost + profit;
+
+                // Possible handling fees
+                const possibleHandlings = [10, 15, 20, 60];
+                let sellingPrice = null;
+                let handlingFee = null;
+                for (let h of possibleHandlings) {
+                    let sp = (desiredNet + h) / denominator;
+                    sp = Math.round(sp * 100) / 100;
+                    const actualH = getHandling(sp);
+                    if (actualH === h) {
+                        sellingPrice = sp;
+                        handlingFee = h;
+                        break;
+                    }
+                }
+
+                if (sellingPrice === null) {
+                    alert('Unable to find consistent selling price. Try adjusting inputs.');
+                    return;
+                }
+
+                // Breakdown calculations
+                const commission = sellingPrice * commRate;
+                const paymentFee = sellingPrice * payRate;
+                const vatTotal = (commission + paymentFee) * vatRate;
+                const totalFees = commission + paymentFee + handlingFee + vatTotal;
+                const netReceived = sellingPrice - totalFees;
+                const actualCost = cost + totalFees;
+
+                // Breakeven price
+                let breakevenPrice = null;
+                for (let h of possibleHandlings) {
+                    let sp = (cost + h) / denominator;
+                    sp = Math.round(sp * 100) / 100;
+                    const actualH = getHandling(sp);
+                    if (actualH === h) {
+                        breakevenPrice = sp;
+                        break;
+                    }
+                }
+
+                if (breakevenPrice === null) {
+                    alert('Unable to find consistent breakeven price. Try adjusting inputs.');
+                    return;
+                }
+
+                // Set result class based on profit
+                resultClass = profit > 0 ? 'profit' : profit < 0 ? 'loss' : 'breakeven';
+
+                // Fee breakdown HTML
+                let feeBreakdown = `
+                    <ul>
+                        <li class="aligned-item"><span class="label">Category Commission (${commissionPercent}% of selling price)</span><span class="value">= Rs. ${commission.toFixed(2)}</span></li>
+                        <li class="aligned-item"><span class="label">Payment Processing Fee (${paymentPercent}% of selling price)</span><span class="value">= Rs. ${paymentFee.toFixed(2)}</span></li>
+                        <li class="aligned-item"><span class="label">Item Handling Fee (based on price range)</span><span class="value">= Rs. ${handlingFee.toFixed(2)}</span></li>
+                `;
+                if (vat > 0) {
+                    feeBreakdown += `
+                        <li class="aligned-item"><span class="label">VAT (${vat}% on commission and payment)</span><span class="value">= Rs. ${vatTotal.toFixed(2)}</span></li>
+                    `;
+                }
+                feeBreakdown += `
+                        <li class="aligned-item"><span class="label">Total Daraz Fees</span><span class="value">= Rs. ${totalFees.toFixed(2)}</span></li>
+                    </ul>
+                `;
+
+                // Profit label adjustment
+                const profitLabel = marginType === 'percent' ? `(${marginLabel} of Making/Buying Cost)` : `(${marginLabel})`;
+
+                resultHTML = `
+                    <h3>Highlights</h3>
+                    <ul>
+                        <li class="aligned-item"><span class="label">Recommended Product Price</span><span class="value">= Rs. ${sellingPrice.toFixed(2)}</span></li>
+                        <li class="aligned-item"><span class="label">Daraz Fees</span><span class="value">= Rs. ${totalFees.toFixed(2)}</span></li>
+                        <li class="aligned-item"><span class="label">Earned ${profit > 0 ? 'Profit' : profit < 0 ? 'Loss' : 'Breakeven'}</span><span class="value">= Rs. ${Math.abs(profit).toFixed(2)}</span></li>
+                    </ul>
+                    <h3>Daraz Fee Breakdown</h3>
+                    ${feeBreakdown}
+                    
+                    <h3>Cost of Product</h3>
+                    <ul>
+                        <li class="aligned-item"><span class="label">Making/Buying Cost</span><span class="value">= Rs. ${cost.toFixed(2)}</span></li>
+                        <li class="aligned-item"><span class="label">+ Total Daraz Fees</span><span class="value">= Rs. ${totalFees.toFixed(2)}</span></li>
+                        <li class="aligned-item"><span class="label">Actual Cost of Product</span><span class="value">= Rs. ${actualCost.toFixed(2)}</span></li>
+                    </ul>
+                    
+                    <h3>Recommended Selling Price</h3>
+                    <ul>
+                        <li class="aligned-item"><span class="label">Making/Buying Cost</span><span class="value">= Rs. ${cost.toFixed(2)}</span></li>
+                        <li class="aligned-item"><span class="label">Desired Profit ${profitLabel}</span><span class="value">= Rs. ${profit.toFixed(2)}</span></li>
+                        <li class="aligned-item"><span class="label">+ Total Daraz Fees</span><span class="value">= Rs. ${totalFees.toFixed(2)}</span></li>
+                        <li class="aligned-item"><span class="label">Recommended Product Price</span><span class="value">= Rs. ${sellingPrice.toFixed(2)}</span></li>
+                    </ul>
+                    
+                    <h3>Desire Estimated Profit</h3>
+                    <div class="calculation">
+                        <div><span class="label">Recommended Product Price</span><span class="value">= Rs. ${sellingPrice.toFixed(2)}</span></div>
+                        <div><span class="label">- Total Daraz Fees</span><span class="value">= Rs. ${totalFees.toFixed(2)}</span></div>
+                        <div><span class="label">Amount Received from Daraz</span><span class="value">= Rs. ${netReceived.toFixed(2)}</span></div>
+                        <div><span class="label">- Making/Buying Cost</span><span class="value">= Rs. ${cost.toFixed(2)}</span></div>
+                        <div><span class="label">${profit > 0 ? 'Profit' : profit < 0 ? 'Loss' : 'Breakeven'} Earned</span><span class="value">= Rs. ${Math.abs(profit).toFixed(2)}</span></div>
+                    </div>
+                    
+                    <h3>Breakeven Price</h3>
+                    <ul>
+                        <li class="aligned-item"><span class="label">Breakeven Selling Price</span><span class="value">= Rs. ${breakevenPrice.toFixed(2)}</span></li>
+                    </ul>
+                    
+                    ${handlingFeeReference}
+                `;
+            } else {
+                // Test Selling Price (use cost, ignore margin)
+                const testHandling = getHandling(testPrice);
+                const testComm = testPrice * commRate;
+                const testPay = testPrice * payRate;
+                const testVat = (testComm + testPay) * vatRate;
+                const testTotalFees = testComm + testPay + testHandling + testVat;
+                const testNet = testPrice - testTotalFees;
+                const testProfit = testNet - cost; // Profit/loss = netReceived - cost
+                const testProfitPercent = cost > 0 ? (testProfit / cost) * 100 : 0;
+                const profitLoss = testProfit > 0 ? 'Profit' : testProfit < 0 ? 'Loss' : 'Breakeven';
+                const absProfit = Math.abs(testProfit);
+                const absPercent = Math.abs(testProfitPercent);
+
+                // Set result class based on test profit
+                resultClass = testProfit > 0 ? 'profit' : testProfit < 0 ? 'loss' : 'breakeven';
+
+                let testFeeBreakdown = `
+                    <ul>
+                        <li class="aligned-item"><span class="label">Category Commission (${commissionPercent}% of selling price)</span><span class="value">= Rs. ${testComm.toFixed(2)}</span></li>
+                        <li class="aligned-item"><span class="label">Payment Processing Fee (${paymentPercent}% of selling price)</span><span class="value">= Rs. ${testPay.toFixed(2)}</span></li>
+                        <li class="aligned-item"><span class="label">Item Handling Fee (based on price range)</span><span class="value">= Rs. ${testHandling.toFixed(2)}</span></li>
+                `;
+                if (vat > 0) {
+                    testFeeBreakdown += `
+                        <li class="aligned-item"><span class="label">VAT (${vat}% on commission and payment)</span><span class="value">= Rs. ${testVat.toFixed(2)}</span></li>
+                    `;
+                }
+                testFeeBreakdown += `
+                        <li class="aligned-item"><span class="label">Total Daraz Fees</span><span class="value">= Rs. ${testTotalFees.toFixed(2)}</span></li>
+                    </ul>
+                `;
+
+                resultHTML = `
+                    <h3>Test Selling Price Results</h3>
+                    <h4>Daraz Fee Breakdown</h4>
+                    ${testFeeBreakdown}
+                    <h3>Profit or Loss Calculation</h3>
+                    <div class="calculation">
+                        <div><span class="label">Test Selling Price</span><span class="value">= Rs. ${testPrice.toFixed(2)}</span></div>
+                        <div><span class="label">- Total Daraz Fees</span><span class="value">= Rs. ${testTotalFees.toFixed(2)}</span></div>
+                        <div><span class="label">Net Received</span><span class="value">= Rs. ${testNet.toFixed(2)}</span></div>
+                        <div><span class="label">- Making/Buying Cost</span><span class="value">= Rs. ${cost.toFixed(2)}</span></div>
+                        <div><span class="label">${profitLoss} in Rupees</span><span class="value">= Rs. ${absProfit.toFixed(2)}</span></div>
+                        <div><span class="label">${profitLoss} in Percentage</span><span class="value">= ${absPercent.toFixed(2)}%</span></div>
+                    </div>
+                    ${handlingFeeReference}
+                `;
+            }
+
+            // Display results
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = resultClass;
+            resultDiv.innerHTML = resultHTML;
+        }
+    </script>
+</body>
+</html>
